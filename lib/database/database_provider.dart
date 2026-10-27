@@ -15,19 +15,14 @@ class DatabaseProvider {
 
   static final DatabaseProvider db = DatabaseProvider._();
 
-  Database? _database;
+  // Se cachea el Future para que llamadas concurrentes compartan una sola apertura.
+  Future<Database>? _database;
 
-  Future<Database?> get database async {
-    if (_database != null) {
-      return _database;
-    }
+  ///[database] instancia única de la base de datos, se abre la primera vez que se pide
+  Future<Database> get database => _database ??= _createDatabase();
 
-    _database = (await createDatabase())!;
-    return _database;
-  }
-
-  ///[createDatabase] método que crea la base de datos
-  Future<Database?> createDatabase() async {
+  ///[_createDatabase] método que crea/abre la base de datos
+  Future<Database> _createDatabase() async {
     String dbPath = await getDatabasesPath();
 
     // contiene la consulta SQL para crear la tabla Software
@@ -85,13 +80,15 @@ class DatabaseProvider {
         //ejecuta las consultas de una en una
         await database.execute(currentQuery);
       }
-      var inserts = getDataInsertQuery(list: metrics, metrics: metricsNames);
-      for (String currentQuery in inserts) {
-        await database.execute(currentQuery);
+      final batch = database.batch();
+      for (final (sql, args)
+          in getDataInsertQuery(list: metrics, metrics: metricsNames)) {
+        batch.execute(sql, args);
       }
+      await batch.commit(noResult: true);
     }
 
-    return await openDatabase(
+    return openDatabase(
       join(
         dbPath,
         'sustainableSystemDB.db',
@@ -114,7 +111,7 @@ class DatabaseProvider {
   Future<List<Software>> getSoftwares() async {
     final db = await database;
 
-    var softwares = await db?.query('Software',
+    var softwares = await db.query('Software',
         columns: [
           'name',
           'rating',
@@ -124,10 +121,10 @@ class DatabaseProvider {
         whereArgs: ['default']);
 
     List<Software> softwareList = [];
-    softwares!.forEach((currentSoftware) {
+    for (final currentSoftware in softwares) {
       Software software = Software.fromMap(currentSoftware);
       softwareList.add(software);
-    });
+    }
     return softwareList;
   }
 
@@ -147,7 +144,7 @@ class DatabaseProvider {
   Future<Software?> getSoftwareByName(String name) async {
     final db = await database;
 
-    var softwares = await db?.query(
+    var softwares = await db.query(
       'Software',
       columns: [
         'name',
@@ -159,9 +156,9 @@ class DatabaseProvider {
     );
 
     Software? software;
-    softwares!.forEach((currentSoftware) {
+    for (final currentSoftware in softwares) {
       software = Software.fromMap(currentSoftware);
-    });
+    }
     return software;
   }
 
@@ -169,7 +166,7 @@ class DatabaseProvider {
   Future<List<Metric>> getMetrics() async {
     final db = await database;
 
-    var metrics = await db?.query(
+    var metrics = await db.query(
       'Metric',
       columns: [
         'name',
@@ -177,10 +174,10 @@ class DatabaseProvider {
     );
 
     List<Metric> metricsList = [];
-    metrics!.forEach((currentMetric) async {
+    for (final currentMetric in metrics) {
       Metric metric = Metric.fromMap(currentMetric);
       metricsList.add(metric);
-    });
+    }
 
     return metricsList;
   }
@@ -216,7 +213,7 @@ class DatabaseProvider {
   Future<Metric?> getMetricByName(String name) async {
     final db = await database;
 
-    var metrics = await db?.query(
+    var metrics = await db.query(
       'Metric',
       columns: [
         'name',
@@ -226,9 +223,9 @@ class DatabaseProvider {
     );
 
     Metric? metric;
-    metrics!.forEach((currentMetric) async {
+    for (final currentMetric in metrics) {
       metric = Metric.fromMap(currentMetric);
-    });
+    }
     return metric;
   }
 
@@ -236,7 +233,7 @@ class DatabaseProvider {
   Future<List<SoftwareMetric>> getSoftwaresMetrics() async {
     final db = await database;
 
-    var softwaresMetrics = await db?.query(
+    var softwaresMetrics = await db.query(
       'SoftwareMetric',
       columns: [
         'software_name',
@@ -245,11 +242,11 @@ class DatabaseProvider {
     );
 
     List<SoftwareMetric> softwaresMetricsList = [];
-    softwaresMetrics!.forEach((currentSoftwareMetric) async {
+    for (final currentSoftwareMetric in softwaresMetrics) {
       SoftwareMetric softwareMetric =
           SoftwareMetric.fromMap(currentSoftwareMetric);
       softwaresMetricsList.add(softwareMetric);
-    });
+    }
     return softwaresMetricsList;
   }
 
@@ -258,7 +255,7 @@ class DatabaseProvider {
       String softwareName, String metricName) async {
     final db = await database;
 
-    var softwaresMetrics = await db?.query(
+    var softwaresMetrics = await db.query(
       'SoftwareMetric',
       columns: [
         'software_name',
@@ -269,9 +266,9 @@ class DatabaseProvider {
     );
 
     SoftwareMetric? softwareMetric;
-    softwaresMetrics!.forEach((currentSoftwareMetric) async {
+    for (final currentSoftwareMetric in softwaresMetrics) {
       softwareMetric = SoftwareMetric.fromMap(currentSoftwareMetric);
-    });
+    }
     return softwareMetric;
   }
 
@@ -280,7 +277,7 @@ class DatabaseProvider {
       String softwareName) async {
     final db = await database;
 
-    var softwaresMetrics = await db?.query(
+    var softwaresMetrics = await db.query(
       'SoftwareMetric',
       columns: [
         'software_name',
@@ -291,11 +288,11 @@ class DatabaseProvider {
     );
 
     List<SoftwareMetric> softwaresMetricsList = [];
-    softwaresMetrics!.forEach((currentSoftwareMetric) async {
+    for (final currentSoftwareMetric in softwaresMetrics) {
       SoftwareMetric softwareMetric =
           SoftwareMetric.fromMap(currentSoftwareMetric);
       softwaresMetricsList.add(softwareMetric);
-    });
+    }
     return softwaresMetricsList;
   }
 
@@ -303,7 +300,7 @@ class DatabaseProvider {
   Future<List<Factor>> getFactors() async {
     final db = await database;
 
-    var factors = await db?.query(
+    var factors = await db.query(
       'Factor',
       columns: [
         'name',
@@ -312,10 +309,10 @@ class DatabaseProvider {
     );
 
     List<Factor> factorsList = [];
-    factors!.forEach((currentFactor) async {
+    for (final currentFactor in factors) {
       Factor factor = Factor.fromMap(currentFactor);
       factorsList.add(factor);
-    });
+    }
     return factorsList;
   }
 
@@ -335,7 +332,7 @@ class DatabaseProvider {
   Future<List<Factor>> getFactorsByMetricName(String metricName) async {
     final db = await database;
 
-    var factors = await db?.query(
+    var factors = await db.query(
       'Factor',
       columns: [
         'name',
@@ -346,10 +343,10 @@ class DatabaseProvider {
     );
 
     List<Factor> factorsList = [];
-    factors!.forEach((currentFactor) async {
+    for (final currentFactor in factors) {
       Factor factor = Factor.fromMap(currentFactor);
       factorsList.add(factor);
-    });
+    }
     return factorsList;
   }
 
@@ -357,7 +354,7 @@ class DatabaseProvider {
   Future<Factor?> getFactorByName(String name) async {
     final db = await database;
 
-    var factors = await db?.query(
+    var factors = await db.query(
       'Factor',
       columns: [
         'name',
@@ -368,9 +365,9 @@ class DatabaseProvider {
     );
 
     Factor? factor;
-    factors!.forEach((currentFactor) async {
+    for (final currentFactor in factors) {
       factor = Factor.fromMap(currentFactor);
-    });
+    }
     return factor;
   }
 
@@ -378,7 +375,7 @@ class DatabaseProvider {
   Future<List<Option>> getOptions() async {
     final db = await database;
 
-    var options = await db?.query(
+    var options = await db.query(
       'Option',
       columns: [
         'name',
@@ -387,10 +384,10 @@ class DatabaseProvider {
     );
 
     List<Option> optionsList = [];
-    options!.forEach((currentOption) async {
+    for (final currentOption in options) {
       Option option = Option.fromMap(currentOption);
       optionsList.add(option);
-    });
+    }
     return optionsList;
   }
 
@@ -410,7 +407,7 @@ class DatabaseProvider {
   Future<List<Option>> getOptionsByFactorName(String factorName) async {
     final db = await database;
 
-    var options = await db?.query(
+    var options = await db.query(
       'Option',
       columns: [
         'name',
@@ -421,10 +418,10 @@ class DatabaseProvider {
     );
 
     List<Option> optionsList = [];
-    options!.forEach((currentOption) async {
+    for (final currentOption in options) {
       Option option = Option.fromMap(currentOption);
       optionsList.add(option);
-    });
+    }
     return optionsList;
   }
 
@@ -432,7 +429,7 @@ class DatabaseProvider {
   Future<Option?> getOptionByName(String name) async {
     final db = await database;
 
-    var options = await db?.query(
+    var options = await db.query(
       'Option',
       columns: [
         'name',
@@ -443,9 +440,9 @@ class DatabaseProvider {
     );
 
     Option? option;
-    options!.forEach((currentOption) async {
+    for (final currentOption in options) {
       option = Option.fromMap(currentOption);
-    });
+    }
     return option;
   }
 
@@ -454,7 +451,7 @@ class DatabaseProvider {
       String softwareName, String factorName, String optionName) async {
     final db = await database;
 
-    var selections = await db?.query(
+    var selections = await db.query(
       'Selection',
       columns: [
         'software_name',
@@ -468,9 +465,9 @@ class DatabaseProvider {
     );
 
     Selection? selection;
-    selections!.forEach((currentSelection) async {
+    for (final currentSelection in selections) {
       selection = Selection.fromMap(currentSelection);
-    });
+    }
     return selection;
   }
 
@@ -479,7 +476,7 @@ class DatabaseProvider {
       String softwareName, String factorName) async {
     final db = await database;
 
-    var selections = await db?.query(
+    var selections = await db.query(
       'Selection',
       columns: [
         'software_name',
@@ -494,21 +491,25 @@ class DatabaseProvider {
     );
 
     List<Selection> selectionsList = [];
-    selections!.forEach((currentSelection) async {
+    for (final currentSelection in selections) {
       Selection selection = Selection.fromMap(currentSelection);
       selectionsList.add(selection);
-    });
+    }
     return selectionsList;
   }
 
   //Operaciones de inserción
 
-  ///[rawQuery] método para ejecutar una consulta
-  ///
-  ///[query] consulta a ejecutar
-  Future<List<Map<String, Object?>>?> rawQuery(String query) async {
+  ///[executeAll] ejecuta [statements] en una única transacción: o se aplican todas o ninguna
+  Future<void> executeAll(List<SqlStatement> statements) async {
     final db = await database;
-    return await db?.rawQuery(query);
+    await db.transaction((txn) async {
+      final batch = txn.batch();
+      for (final (sql, args) in statements) {
+        batch.execute(sql, args);
+      }
+      await batch.commit(noResult: true);
+    });
   }
 
   ///[insertSoftware] método para insertar un [Software]
@@ -516,7 +517,7 @@ class DatabaseProvider {
   ///[software] [Software] a insertar
   Future<Software?> insertSoftware(Software software) async {
     final db = await database;
-    await db?.insert(
+    await db.insert(
       'Software',
       software.toMap(),
     );
@@ -528,7 +529,7 @@ class DatabaseProvider {
   ///[metric] [Metric] a insertar
   Future<Metric?> insertMetric(Metric metric) async {
     final db = await database;
-    await db?.insert(
+    await db.insert(
       'Metric',
       metric.toMap(),
     );
@@ -541,7 +542,7 @@ class DatabaseProvider {
   Future<SoftwareMetric?> insertSoftwareMetric(
       SoftwareMetric softwareMetric) async {
     final db = await database;
-    await db?.insert(
+    await db.insert(
       'SoftwareMetric',
       softwareMetric.toMap(),
     );
@@ -553,7 +554,7 @@ class DatabaseProvider {
   ///[factor] [Factor] a insertar
   Future<Factor?> insertFactor(Factor factor) async {
     final db = await database;
-    await db?.insert(
+    await db.insert(
       'Factor',
       factor.toMap(),
     );
@@ -565,7 +566,7 @@ class DatabaseProvider {
   ///[option] [Option] a insertar
   Future<Option?> insertOption(Option option) async {
     final db = await database;
-    await db?.insert(
+    await db.insert(
       'Option',
       option.toMap(),
     );
@@ -577,7 +578,7 @@ class DatabaseProvider {
   ///[selection] [Selection] a insertar
   Future<Selection?> insertSelection(Selection selection) async {
     final db = await database;
-    await db?.insert(
+    await db.insert(
       'Selection',
       selection.toMap(),
     );
@@ -592,7 +593,7 @@ class DatabaseProvider {
   Future<bool> deleteAllSoftwares() async {
     final db = await database;
 
-    var deleteCount = await db?.rawDelete('''
+    var deleteCount = await db.rawDelete('''
         DELETE FROM Software 
         WHERE name != ?
        ''', ['default']);
@@ -606,7 +607,7 @@ class DatabaseProvider {
   ///retorna [true] si la borra, y [false] si no
   Future<bool> deleteSoftware(String name) async {
     final db = await database;
-    var deleteCount = await db?.rawDelete(
+    var deleteCount = await db.rawDelete(
       '''
         DELETE FROM Software 
         WHERE name = ?''',
@@ -676,48 +677,23 @@ class DatabaseProvider {
   ///retorna [true] cuando existe, y [false] si no
   Future<List<Map<String, Map<int, List>>>> softwareToList(
       String softwareName) async {
-    List<Map<String, Map<int, List>>> list = [];
-
-    var softwareMetric = await getSoftwaresMetricsBySoftwareName(softwareName);
-
-    var metricsNames = <String>[];
-    softwareMetric.forEach((element) {
-      print(element);
-      metricsNames.add(element.metric_name);
-    });
-
-    await asyncFor(
-      0,
-      metricsNames.length,
-      (i) {
-        return getFactorsByMetricName(metricsNames[i]).then((ftrs) async {
-          Map<String, Map<int, List>> factors = {};
-          await asyncFor(
-            0,
-            ftrs.length,
-            (j) {
-              Map<int, List> opts = {};
-              return getOptionsByFactorName(ftrs[j].name).then((options) async {
-                await asyncFor(
-                  0,
-                  options.length,
-                  (k) {
-                    return getSelection(
-                            softwareName, ftrs[j].name, options[k].name)
-                        .then((selection) {
-                      opts[selection!.value] =
-                          [options[k].name, selection.isSelected].toList();
-                    });
-                  },
-                );
-                factors[ftrs[j].name] = opts;
-              });
-            },
-          );
-          list.add(factors);
-        });
-      },
-    );
+    final list = <Map<String, Map<int, List>>>[];
+    for (final softwareMetric
+        in await getSoftwaresMetricsBySoftwareName(softwareName)) {
+      final factors = <String, Map<int, List>>{};
+      for (final factor in await getFactorsByMetricName(softwareMetric.metric_name)) {
+        final opts = <int, List>{};
+        for (final option in await getOptionsByFactorName(factor.name)) {
+          final selection =
+              await getSelection(softwareName, factor.name, option.name);
+          if (selection != null) {
+            opts[selection.value] = [option.name, selection.isSelected];
+          }
+        }
+        factors[factor.name] = opts;
+      }
+      list.add(factors);
+    }
     return list;
   }
 }

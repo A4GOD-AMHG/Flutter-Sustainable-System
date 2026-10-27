@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sustainable_system/app.dart';
+import 'package:sustainable_system/controllers/database_controller.dart';
 import 'package:sustainable_system/utils/features_discoveries.dart';
 
 void main() async {
@@ -13,6 +14,7 @@ void main() async {
   ]);
 
   await initPreferences();
+  await databaseController.init();
 
   runApp(const MyApp());
 }

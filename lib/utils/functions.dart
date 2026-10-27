@@ -1,11 +1,7 @@
 import 'package:sustainable_system/models/software.dart';
 
-Future<void> asyncFor(int index, int max, Future<void> Function(int) forBody) {
-  if (index >= max) {
-    return Future.value();
-  }
-  return forBody(index).then((_) => asyncFor(index + 1, max, forBody));
-}
+/// Sentencia SQL parametrizada: la consulta y sus argumentos.
+typedef SqlStatement = (String sql, List<Object?> args);
 
 String getClasification(int value) {
   if (value >= 0 && value <= 8) {
@@ -16,66 +12,95 @@ String getClasification(int value) {
   return 'Sostenible';
 }
 
-List<String> getDataInsertQuery(
-    {dynamic software = 'default',
-    required List<Map<String, Map<dynamic, dynamic>>> list,
+/// Puntos de cada métrica: suma del valor de la opción marcada en cada factor.
+List<int> getMetricsValues(List<Map<String, Map<int, List>>> metrics) {
+  return [
+    for (final metric in metrics)
+      metric.values.fold<int>(
+          0, (sum, options) => sum + getSelectedValue(options)),
+  ];
+}
+
+/// Valor (clave) de la opción marcada de un factor, o 0 si no hay ninguna.
+int getSelectedValue(Map<int, List> options) {
+  for (final option in options.entries) {
+    if (option.value[1] == true) return option.key;
+  }
+  return 0;
+}
+
+/// Genera las sentencias para insertar un software con sus selecciones.
+///
+/// Si [software] es `null` se insertan los datos base ('default'): métricas,
+/// factores y opciones además de las selecciones por defecto.
+List<SqlStatement> getDataInsertQuery(
+    {Software? software,
+    required List<Map<String, Map<int, List>>> list,
     required List<String> metrics}) {
-  List<String> data = [
-    "INSERT INTO Software(${software == 'default' ? 'name' : 'name, rating, points'}) VALUES (${software == 'default' ? "'default'" : "'${software.name}', '${software.rating}', ${software.points}"});\n"
+  final isDefault = software == null;
+  final name = software?.name ?? 'default';
+  final data = <SqlStatement>[
+    software == null
+        ? ('INSERT INTO Software(name) VALUES (?)', [name])
+        : (
+            'INSERT INTO Software(name, rating, points) VALUES (?, ?, ?)',
+            [name, software.rating, software.points]
+          ),
   ];
 
   for (int i = 0; i < list.length; i++) {
-    var factors = list[i].entries.toList();
-    if (software == 'default') {
-      data.add("INSERT INTO Metric(name) VALUES ('${metrics[i]}');");
+    if (isDefault) {
+      data.add(('INSERT INTO Metric(name) VALUES (?)', [metrics[i]]));
     }
-    data.add(
-        "INSERT INTO SoftwareMetric(software_name, metric_name) VALUES ('${software == 'default' ? software : software.name}', '${metrics[i]}');");
-    for (int j = 0; j < factors.length; j++) {
-      var optsMap = factors[j].value;
-      var options = optsMap.entries.toList();
-      if (software == 'default') {
-        data.add(
-            "INSERT INTO Factor(name, metric_name) VALUES ('${factors[j].key}', '${metrics[i]}');");
+    data.add((
+      'INSERT INTO SoftwareMetric(software_name, metric_name) VALUES (?, ?)',
+      [name, metrics[i]]
+    ));
+    for (final factor in list[i].entries) {
+      if (isDefault) {
+        data.add((
+          'INSERT INTO Factor(name, metric_name) VALUES (?, ?)',
+          [factor.key, metrics[i]]
+        ));
       }
-      for (int k = 0; k < options.length; k++) {
-        if (software == 'default') {
-          data.add(
-              "INSERT INTO Option(name, factor_name) VALUES ('${options[k].value[0]}', '${factors[j].key}');");
+      for (final option in factor.value.entries) {
+        if (isDefault) {
+          data.add((
+            'INSERT INTO Option(name, factor_name) VALUES (?, ?)',
+            [option.value[0], factor.key]
+          ));
         }
-        data.add(
-            "INSERT INTO Selection(software_name, factor_name, option_name, isSelected, value) VALUES ('${software == 'default' ? software : software.name}', '${factors[j].key}', '${options[k].value[0]}', ${options[k].value[1] ? 1 : 0}, ${options[k].key});");
+        data.add((
+          'INSERT INTO Selection(software_name, factor_name, option_name, isSelected, value) VALUES (?, ?, ?, ?, ?)',
+          [name, factor.key, option.value[0], option.value[1] ? 1 : 0, option.key]
+        ));
       }
     }
   }
   return data;
 }
 
-List<String> getDataUpdateQuery(
+/// Genera las sentencias para actualizar las selecciones de [software] y
+/// renombrarlo a [newName] (el renombrado se propaga por ON UPDATE CASCADE).
+List<SqlStatement> getDataUpdateQuery(
     {required String newName,
     required Software software,
-    required List<Map<String, Map<dynamic, dynamic>>> list,
-    required List<String> metrics}) {
-  List<String> data = [];
+    required List<Map<String, Map<int, List>>> list}) {
+  final data = <SqlStatement>[];
 
-  for (int i = 0; i < list.length; i++) {
-    var factors = list[i].entries.toList();
-    for (int j = 0; j < factors.length; j++) {
-      var optsMap = factors[j].value;
-      var options = optsMap.entries.toList();
-      for (int k = 0; k < options.length; k++) {
-        data.add('''UPDATE Selection 
-           SET isSelected = ${options[k].value[1] ? 1 : 0}
-           WHERE software_name = '${software.name}' and factor_name = '${factors[j].key}' and option_name = '${options[k].value[0]}';
-        ''');
+  for (final metric in list) {
+    for (final factor in metric.entries) {
+      for (final option in factor.value.entries) {
+        data.add((
+          'UPDATE Selection SET isSelected = ? WHERE software_name = ? AND factor_name = ? AND option_name = ?',
+          [option.value[1] ? 1 : 0, software.name, factor.key, option.value[0]]
+        ));
       }
     }
   }
-  data.add('''UPDATE Software 
-           SET name = '$newName',
-           rating = '${software.rating}', 
-           points = ${software.points}
-           WHERE name = '${software.name}';
-        ''');
+  data.add((
+    'UPDATE Software SET name = ?, rating = ?, points = ? WHERE name = ?',
+    [newName, software.rating, software.points, software.name]
+  ));
   return data;
 }

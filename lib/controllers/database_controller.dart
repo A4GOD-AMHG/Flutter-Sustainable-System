@@ -5,12 +5,13 @@ import 'package:sustainable_system/models/option.dart';
 import 'package:sustainable_system/models/selection.dart';
 import 'package:sustainable_system/models/software.dart';
 import 'package:sustainable_system/models/software_metric.dart';
+import 'package:sustainable_system/utils/functions.dart';
 
 ///[_DatabaseController] clase que controla la base de datos
 class _DatabaseController {
-  ///[init] método que crea la base de datos
-  void init() {
-    DatabaseProvider.db.createDatabase();
+  ///[init] método que crea/abre la base de datos
+  Future<void> init() async {
+    await DatabaseProvider.db.database;
   }
 
   ///[getSoftwares] método que retorna una lista de [Software]
@@ -121,11 +122,9 @@ class _DatabaseController {
     return DatabaseProvider.db.getSelections(softwareName, factorName);
   }
 
-  ///[rawQuery] método para ejecutar una consulta
-  ///
-  ///[query] consulta a ejecutar
-  Future<List<Map<String, Object?>>?> rawQuery(String query) async {
-    return DatabaseProvider.db.rawQuery(query);
+  ///[executeAll] ejecuta varias sentencias en una única transacción
+  Future<void> executeAll(List<SqlStatement> statements) {
+    return DatabaseProvider.db.executeAll(statements);
   }
 
   ///[insertSoftware] método para insertar un [Software]
