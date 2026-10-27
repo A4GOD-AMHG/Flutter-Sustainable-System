@@ -1,52 +1,48 @@
 import 'package:animate_do/animate_do.dart';
 import 'package:feature_discovery/feature_discovery.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:get/get.dart';
 
 import 'package:sustainable_system/components/my_button.dart';
 import 'package:sustainable_system/components/header.dart';
-import 'package:sustainable_system/controllers/database_controller.dart';
-import 'package:sustainable_system/screens/calculation_page.dart';
 import 'package:sustainable_system/screens/history_page.dart';
 import 'package:sustainable_system/utils/constants.dart';
 import 'package:sustainable_system/utils/features_discoveries.dart';
+import 'package:sustainable_system/utils/navigation.dart';
 
 class ButtonItem {
   final IconData icon;
   final String text;
   final Color color1;
   final Color color2;
+  final String featureId;
   final void Function() onPress;
-  ButtonItem(
+  const ButtonItem(
       {required this.icon,
       required this.text,
       required this.color1,
       required this.color2,
+      required this.featureId,
       required this.onPress});
 }
 
 class HomePage extends StatefulWidget {
-  const HomePage({Key? key}) : super(key: key);
+  const HomePage({super.key});
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  late BuildContext cont;
-  List<GlobalKey<EnsureVisibleState>> ensureVisibleGlobalKey = [
-    GlobalKey<EnsureVisibleState>(),
-    GlobalKey<EnsureVisibleState>(),
-    GlobalKey<EnsureVisibleState>(),
-    GlobalKey<EnsureVisibleState>()
-  ];
+  final List<GlobalKey<EnsureVisibleState>> ensureVisibleGlobalKey =
+      List.generate(4, (_) => GlobalKey<EnsureVisibleState>());
+
   @override
   void initState() {
-    if (getShowDiscovery(key_home) ?? true) {
-      SchedulerBinding.instance.addPostFrameCallback(
-        (Duration duration) => showDiscovery(cont,
+    super.initState();
+    if (getShowDiscovery(keyHome) ?? true) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => showDiscovery(context,
             listId: [
               kFeatureId1PopupMenu,
               kFeatureId2CalculateSoftware,
@@ -54,185 +50,93 @@ class _HomePageState extends State<HomePage> {
               kFeatureId4Settings,
               kFeatureId5Help
             ],
-            key: key_home),
+            key: keyHome),
       );
     }
-
-    super.initState();
   }
 
   @override
   Widget build(BuildContext context) {
-    setState(() {
-      cont = context;
-    });
-    final features = [
-      kFeatureId2CalculateSoftware,
-      kFeatureId3History,
-      kFeatureId4Settings,
-      kFeatureId5Help
-    ];
     final items = [
       ButtonItem(
         icon: FontAwesomeIcons.calculator,
         text: 'Calcular',
-        color1: const Color(0xF4089556),
+        color1: const Color(0xFF1B5E20),
         color2: const Color(0xFF66BB6A),
-        onPress: () async {
-          var metrics = await databaseController.softwareToList('default');
-          var metricsNames =
-              await databaseController.getMetricsNamesBySoftwareName('default');
-          Get.offAll(
-            () => SlideInRight(
-              duration: const Duration(milliseconds: 250),
-              child: CalculationPage(
-                softwareName: 'default',
-                metrics: metrics,
-                metricsNames: metricsNames,
-              ),
-            ),
-          );
-        },
+        featureId: kFeatureId2CalculateSoftware,
+        onPress: () => openCalculation('default'),
       ),
       ButtonItem(
         icon: FontAwesomeIcons.clockRotateLeft,
         text: 'Historial',
-        color1: const Color(0xF4085195),
+        color1: const Color(0xFF085195),
         color2: const Color(0xFF1D8DE9),
-        onPress: () {
-          Get.offAll(
-            () => SlideInRight(
-              duration: const Duration(milliseconds: 250),
-              child: HistoryPage(),
-            ),
-          );
-        },
+        featureId: kFeatureId3History,
+        onPress: () => navigateTo(const HistoryPage()),
       ),
       ButtonItem(
         icon: FontAwesomeIcons.gear,
         text: 'Ajustes',
-        color1: const Color(0xFF607D8B),
-        color2: const Color(0xFF9E9E9E),
-        onPress: () {
-          _showDialogSettings(context);
-        },
+        color1: const Color(0xFF455A64),
+        color2: const Color(0xFF90A4AE),
+        featureId: kFeatureId4Settings,
+        onPress: () => _showDialogSettings(context),
       ),
       ButtonItem(
         icon: FontAwesomeIcons.circleInfo,
         text: 'Acerca de',
-        color1: Colors.black38,
-        color2: Colors.grey,
-        onPress: () {
-          showAboutDialog(
-            context: context,
-            applicationName: "Sistema Sostenible",
-            applicationVersion: "1.0.0",
-            applicationIcon: Image.asset(
-              "assets/images/icon.png",
-              scale: 5,
-            ),
-            children: [
-              Text.rich(
-                TextSpan(
-                  children: [
-                    WidgetSpan(
-                        child: Text(
-                      "Autores:",
-                      textAlign: TextAlign.center,
-                      style:
-                          TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
-                    )),
-                    WidgetSpan(
-                      child: Text(
-                        "Leonardo Alain Moreira Rodríguez\nAlexis Manuel Hurtado García",
-                        style: TextStyle(fontSize: 18),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ],
-                ),
-                textAlign: TextAlign.center,
-              ),
-              SizedBox(
-                height: 15,
-              ),
-              Text.rich(
-                TextSpan(
-                  children: [
-                    WidgetSpan(
-                        child: Text(
-                      "Tutora: ",
-                      textAlign: TextAlign.center,
-                      style:
-                          TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
-                    )),
-                    WidgetSpan(
-                      child: Text(
-                        "MsC. Dailyn Sosa López",
-                        style: TextStyle(fontSize: 18),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ],
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          );
-        },
+        color1: const Color(0xFF424242),
+        color2: const Color(0xFF9E9E9E),
+        featureId: kFeatureId5Help,
+        onPress: () => _showAbout(context),
       ),
     ];
 
-    List<Widget> itemsMap = items
-        .asMap()
-        .entries
-        .toList()
-        .map(
-          (itemMap) => FadeInLeft(
-            duration: const Duration(milliseconds: 500),
-            child: buildWidget(context,
-                child: EnsureVisible(
-                  key: ensureVisibleGlobalKey[itemMap.key],
-                  child: MyButton(
-                    icon: itemMap.value.icon,
-                    child: Text(itemMap.value.text,
-                        style: TextStyle(color: Colors.white, fontSize: 16)),
-                    onPress: itemMap.value.onPress,
-                    color1: itemMap.value.color1,
-                    color2: itemMap.value.color2,
-                  ),
-                ),
-                featureId: features[itemMap.key],
-                tapTarget: FaIcon(itemMap.value.icon),
-                contentLocation: ContentLocation.above, onOpen: () async {
-              WidgetsBinding.instance.addPostFrameCallback((Duration duration) {
-                ensureVisibleGlobalKey[itemMap.key]
-                    .currentState!
-                    .ensureVisible();
-              });
-              return true;
-            },
-                title: '${itemMap.value.text}',
-                description:
-                    'Pulse aquí para abrir la pantalla ${itemMap.value.text}${itemMap.value.text == 'Ajustes' ? '(En desarrollo)' : ''}'),
-          ),
-        )
-        .toList();
-    return WillPopScope(
-      onWillPop: () async {
-        return false;
-      },
+    return PopScope(
+      canPop: false,
       child: Scaffold(
-        backgroundColor: Colors.white,
         body: Stack(
           children: [
-            Container(
-              margin: const EdgeInsets.only(top: 180),
+            Padding(
+              padding: const EdgeInsets.only(top: 180),
               child: ListView(
                 physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.only(top: 80, bottom: 24),
                 children: [
-                  const SizedBox(height: 80),
-                  ...itemsMap,
+                  for (final (index, item) in items.indexed)
+                    FadeInLeft(
+                      delay: Duration(milliseconds: 80 * index),
+                      duration: const Duration(milliseconds: 450),
+                      child: buildWidget(context,
+                          child: EnsureVisible(
+                            key: ensureVisibleGlobalKey[index],
+                            child: MyButton(
+                              icon: item.icon,
+                              onPress: item.onPress,
+                              color1: item.color1,
+                              color2: item.color2,
+                              child: Text(item.text,
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w600)),
+                            ),
+                          ),
+                          featureId: item.featureId,
+                          tapTarget: FaIcon(item.icon),
+                          contentLocation: ContentLocation.above,
+                          onOpen: () async {
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              ensureVisibleGlobalKey[index]
+                                  .currentState
+                                  ?.ensureVisible();
+                            });
+                            return true;
+                          },
+                          title: item.text,
+                          description:
+                              'Pulse aquí para abrir la pantalla ${item.text}${item.text == 'Ajustes' ? ' (En desarrollo)' : ''}'),
+                    ),
                 ],
               ),
             ),
@@ -243,94 +147,93 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  void _showAbout(BuildContext context) {
+    const bold = TextStyle(fontWeight: FontWeight.w900, fontSize: 16);
+    const normal = TextStyle(fontSize: 16);
+    showAboutDialog(
+      context: context,
+      applicationName: "Sistema Sostenible",
+      applicationVersion: appVersion,
+      applicationIcon: Image.asset("assets/images/icon.png", width: 48),
+      children: const [
+        Text("Autores:", textAlign: TextAlign.center, style: bold),
+        Text("Leonardo Alain Moreira Rodríguez\nAlexis Manuel Hurtado García",
+            style: normal, textAlign: TextAlign.center),
+        SizedBox(height: 15),
+        Text("Tutora:", textAlign: TextAlign.center, style: bold),
+        Text("MsC. Dailyn Sosa López",
+            style: normal, textAlign: TextAlign.center),
+      ],
+    );
+  }
+
   void _showDialogSettings(BuildContext context) {
     showDialog(
       context: context,
-      builder: (BuildContext context) => Dialog(
-        child: Stack(
-          children: [
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(
-                  height: 20,
-                ),
-                Container(
-                  padding: EdgeInsets.all(5),
-                  alignment: Alignment.center,
-                  child: Text(
-                    "En desarrollo...",
-                    style: TextStyle(
-                      fontSize: 18,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                const SizedBox(
-                  height: 20,
-                ),
-              ],
-            )
-          ],
-        ),
+      builder: (context) => AlertDialog(
+        icon: const Icon(Icons.construction_rounded),
+        title: const Text("Ajustes"),
+        content: const Text("En desarrollo...", textAlign: TextAlign.center),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cerrar"),
+          ),
+        ],
       ),
     );
   }
 }
 
 class _Header extends StatelessWidget {
-  const _Header({
-    Key? key,
-  }) : super(key: key);
+  const _Header();
 
   @override
   Widget build(BuildContext context) {
-    FaIcon iconMenu = const FaIcon(
+    const iconMenu = FaIcon(
       FontAwesomeIcons.ellipsisVertical,
       color: Colors.white,
     );
     return Stack(
       children: [
         const IconHeader(
-          icon: FontAwesomeIcons.house,
+          icon: FontAwesomeIcons.leaf,
           title: 'Sistema Sostenible',
           subtitle: 'Menú',
         ),
         Positioned(
-            right: 0,
-            top: 45,
-            child: buildWidget(
-              context,
-              title: 'Menú de Opciones',
-              description: 'Pulse aquí para abrir el Menú de Opciones',
-              featureId: kFeatureId1PopupMenu,
-              tapTarget: iconMenu,
-              contentLocation: ContentLocation.below,
-              child: PopupMenuButton(
-                padding: const EdgeInsets.all(15),
-                color: Colors.white,
-                splashRadius: 5,
-                shape: Border.all(width: 1, color: primarySwatch[900]!),
-                icon: iconMenu,
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 1,
-                    child: Text('Reiniciar tutoriales'),
+          right: 4,
+          top: MediaQuery.paddingOf(context).top + 4,
+          child: buildWidget(
+            context,
+            title: 'Menú de Opciones',
+            description: 'Pulse aquí para abrir el Menú de Opciones',
+            featureId: kFeatureId1PopupMenu,
+            tapTarget: iconMenu,
+            contentLocation: ContentLocation.below,
+            child: PopupMenuButton<int>(
+              tooltip: 'Opciones',
+              icon: iconMenu,
+              itemBuilder: (context) => const [
+                PopupMenuItem(
+                  value: 1,
+                  child: ListTile(
+                    leading: Icon(Icons.school_outlined),
+                    title: Text('Reiniciar tutoriales'),
                   ),
-                ],
-                onSelected: (value) {
-                  if (value == 1) {
-                    setShowDiscovery(true, key_home);
-                    setShowDiscovery(true, key_calculation);
-                    setShowDiscovery(true, key_history);
-
-                    Get.offAll(() => HomePage());
-                  }
-                },
-              ),
-            ))
+                ),
+              ],
+              onSelected: (value) async {
+                if (value == 1) {
+                  await setShowDiscovery(true, keyHome);
+                  await setShowDiscovery(true, keyCalculation);
+                  await setShowDiscovery(true, keyHistory);
+                  navigateTo(const HomePage());
+                }
+              },
+            ),
+          ),
+        ),
       ],
     );
   }
