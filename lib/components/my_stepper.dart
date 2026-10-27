@@ -1,97 +1,47 @@
 import 'package:flutter/material.dart';
-import 'package:sustainable_system/components/step_content.dart';
 
-// ignore: must_be_immutable
-class MyStepper extends StatefulWidget {
-  List<Step> steps;
-  StepperType type;
-  int? currentStep;
-  int value = 0;
-  bool isSave = false;
+/// [Stepper] controlado: el paso actual lo guarda el padre.
+class MyStepper extends StatelessWidget {
+  final List<Step> steps;
+  final int currentStep;
+  final void Function(int) onStepChanged;
 
-  void Function(int)? onStepTapped;
-
-  MyStepper(
-      {Key? key,
+  const MyStepper(
+      {super.key,
       required this.steps,
-      this.type = StepperType.vertical,
-      this.onStepTapped})
-      : super(key: key);
-
-  @override
-  State<MyStepper> createState() => _MyStepperState();
-}
-
-class _MyStepperState extends State<MyStepper> {
-  late int _currentStep;
-  // ignore: unused_field
-  late List<int> _values;
-
-  void setValues() {
-    List<int> values = [];
-    for (var element in widget.steps) {
-      var step = element.content as StepContent;
-      values.add(step.value);
-    }
-    setState(() {
-      _values = values;
-    });
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _currentStep = widget.currentStep ?? 0;
-    _values = [];
-    setValues();
-  }
+      required this.currentStep,
+      required this.onStepChanged});
 
   @override
   Widget build(BuildContext context) {
+    final isLast = currentStep == steps.length - 1;
     return Stepper(
       physics: const BouncingScrollPhysics(),
-      type: widget.type,
-      steps: widget.steps,
-      onStepTapped: (newIndex) {
-        setState(() {
-          _currentStep = newIndex;
-          widget.currentStep = newIndex;
-          widget.onStepTapped!(_currentStep);
-        });
-      },
-      currentStep: _currentStep,
-      onStepContinue: () {
-        if (_currentStep != widget.steps.length - 1) {
-          setState(() {
-            _currentStep++;
-            widget.currentStep = _currentStep;
-            widget.onStepTapped!(_currentStep);
-          });
-        }
-      },
-      onStepCancel: () {
-        if (_currentStep != 0) {
-          setState(() {
-            _currentStep--;
-            widget.currentStep = _currentStep;
-            widget.onStepTapped!(_currentStep);
-          });
-        }
-      },
+      steps: steps,
+      currentStep: currentStep,
+      onStepTapped: onStepChanged,
+      onStepContinue: isLast ? null : () => onStepChanged(currentStep + 1),
+      onStepCancel: currentStep == 0 ? null : () => onStepChanged(currentStep - 1),
       controlsBuilder: (context, details) {
-        return Row(
-          children: <Widget>[
-            if (details.currentStep != 0)
-              TextButton(
-                onPressed: details.onStepCancel,
-                child: const Text('Anterior'),
-              ),
-            if (details.currentStep != widget.steps.length - 1)
-              TextButton(
-                onPressed: details.onStepContinue,
-                child: const Text('Siguiente'),
-              )
-          ],
+        return Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: Row(
+            children: [
+              if (!isLast)
+                FilledButton.icon(
+                  onPressed: details.onStepContinue,
+                  icon: const Icon(Icons.arrow_downward_rounded, size: 18),
+                  label: const Text('Siguiente'),
+                ),
+              if (!isLast && details.currentStep != 0) const SizedBox(width: 8),
+              if (details.currentStep != 0)
+                TextButton.icon(
+                  onPressed: details.onStepCancel,
+                  icon: const Icon(Icons.arrow_upward_rounded, size: 18),
+                  label: const Text('Anterior'),
+                ),
+            ],
+          ),
         );
       },
     );

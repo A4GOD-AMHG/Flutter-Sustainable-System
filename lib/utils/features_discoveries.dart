@@ -8,14 +8,14 @@ import 'package:sustainable_system/utils/constants.dart';
 ///Se utiliza para controlar si un tutorial fue mostrado y no volverlo a mostrar más
 SharedPreferences? preferences;
 
-///[key_home] constante que contiene la clave de la pantalla home
-const String key_home = "home";
+///[keyHome] constante que contiene la clave de la pantalla home
+const String keyHome = "home";
 
-///[key_calculation] constante que contiene la clave de la pantalla de calcular
-const String key_calculation = "calculation";
+///[keyCalculation] constante que contiene la clave de la pantalla de calcular
+const String keyCalculation = "calculation";
 
-///[key_history] constante que contiene la clave de la pantalla historial
-const String key_history = "view_history";
+///[keyHistory] constante que contiene la clave de la pantalla historial
+const String keyHistory = "view_history";
 
 ///[initPreferences] función que inicia las preferencias compartidas
 Future initPreferences() async {
@@ -103,7 +103,7 @@ DescribedFeatureOverlay buildWidget(BuildContext context,
     title: Text(title),
     description: Text(
       description,
-      style: TextStyle(color: Colors.black54),
+      style: const TextStyle(color: Colors.white70),
     ),
     backgroundColor: primarySwatch[800],
     targetColor: primarySwatch[200]!,
@@ -112,8 +112,8 @@ DescribedFeatureOverlay buildWidget(BuildContext context,
     allowShowingDuplicate: true,
     contentLocation: contentLocation,
     barrierDismissible: false,
-    child: child,
     onOpen: onOpen,
+    child: child,
   );
 }
 
@@ -130,9 +130,10 @@ Future<void> showDiscovery(BuildContext context,
     context,
     listId,
   );
+  if (!context.mounted) return;
   FeatureDiscovery.discoverFeatures(
     context,
     listId,
   );
-  setShowDiscovery(false, key);
+  await setShowDiscovery(false, key);
 }

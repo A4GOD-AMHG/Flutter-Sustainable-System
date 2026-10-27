@@ -1,3 +1,6 @@
+// Los nombres de campo reflejan las columnas de la base de datos.
+// ignore_for_file: non_constant_identifier_names
+
 class Factor {
   late String name;
   late String metric_name;
